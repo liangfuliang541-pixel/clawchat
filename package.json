@@ -12,11 +12,20 @@
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
     "lint": "npm run lint -w frontend && npm run lint -w backend",
-    "typecheck": "npm run typecheck -w frontend && npm run typecheck -w backend"
+    "lint:fix": "npm run lint:fix -w frontend && npm run lint:fix -w backend",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,json,md}\"",
+    "typecheck": "npm run typecheck -w frontend && npm run typecheck -w backend",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx,js,mjs,cjs}": "npx prettier --write",
+    "backend/src/**/*.{ts,js,mjs,cjs}": "npx prettier --write",
+    "*.{json,md}": "npx prettier --write"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "concurrently": "^9.0.0",
-    "@types/node": "^22.0.0"
+    "lint-staged": "^16.4.0"
   },
   "engines": {
     "node": ">=20.0.0"

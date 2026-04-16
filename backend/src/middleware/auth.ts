@@ -18,9 +18,10 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     }
 
     const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
-    const user = process.env.USE_MOCK_DB === 'true'
-      ? await mockDB.findById(decoded.userId)
-      : await User.findById(decoded.userId).select('-password');
+    const user =
+      process.env.USE_MOCK_DB === 'true'
+        ? await mockDB.findById(decoded.userId)
+        : await User.findById(decoded.userId).select('-password');
     if (!user) {
       res.status(401).json({ success: false, message: 'User not found' });
       return;

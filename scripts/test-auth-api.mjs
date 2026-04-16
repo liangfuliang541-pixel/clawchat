@@ -45,7 +45,11 @@ async function run() {
   });
   console.log('Profile:', profile);
 
-  const allOk = health.status === 200 && register.status === 201 && login.status === 200 && profile.status === 200;
+  const allOk =
+    health.status === 200 &&
+    register.status === 201 &&
+    login.status === 200 &&
+    profile.status === 200;
   console.log(allOk ? '\n✅ All auth APIs passed' : '\n❌ Some APIs failed');
   process.exit(allOk ? 0 : 1);
 }

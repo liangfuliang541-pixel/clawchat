@@ -12,8 +12,6 @@ import { registerSocketHandlers } from './sockets/index.js';
 
 dotenv.config();
 
-// 全局JWT Secret - 确保一致性
-export const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const USE_MOCK = process.env.USE_MOCK_DB === 'true';
 
 const app = express();
@@ -31,7 +29,14 @@ app.use(express.json({ limit: '10mb' }));
 
 // Health check
 app.get('/health', (_req, res) => {
-  res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString(), dbMode: USE_MOCK ? 'mock' : 'mongo' } });
+  res.json({
+    success: true,
+    data: {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      dbMode: USE_MOCK ? 'mock' : 'mongo',
+    },
+  });
 });
 
 // Routes
@@ -41,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use(errorHandler);
 
 // Sockets
+io.use(socketAuthMiddleware);
 registerSocketHandlers(io);
 
 const PORT = process.env.PORT || 3001;

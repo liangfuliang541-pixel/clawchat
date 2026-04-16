@@ -1,13 +1,11 @@
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import type { ServerToClientEvents, ClientToServerEvents } from '@clawchat/shared';
 import { logger } from '../config/logger.js';
 import { Message } from '../models/Message.js';
 import { Conversation } from '../models/Conversation.js';
-import { User } from '../models/User.js';
+import type { AuthenticatedSocket } from './auth.js';
 
-interface AuthenticatedSocket extends Socket<ClientToServerEvents, ServerToClientEvents> {
-  userId?: string;
-}
+export { socketAuthMiddleware } from './auth.js';
 
 export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerToClientEvents>) => {
   io.on('connection', (socket: AuthenticatedSocket) => {
@@ -18,8 +16,11 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
 
     socket.on('join_conversation', (conversationId) => {
       socket.join(conversationId);
-      logger.info({ socketId: socket.id, conversationId, userId: socket.userId }, 'Joined conversation');
-      
+      logger.info(
+        { socketId: socket.id, conversationId, userId: socket.userId },
+        'Joined conversation'
+      );
+
       // Notify others in the room
       socket.to(conversationId).emit('user_status_changed', {
         userId: socket.userId || 'unknown',
@@ -30,7 +31,7 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
     socket.on('leave_conversation', (conversationId) => {
       socket.leave(conversationId);
       logger.info({ socketId: socket.id, conversationId }, 'Left conversation');
-      
+
       // Notify others in the room
       socket.to(conversationId).emit('user_status_changed', {
         userId: socket.userId || 'unknown',
@@ -80,7 +81,10 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
 
         // Broadcast to room members
         io.to(payload.conversationId).emit('receive_message', messageResponse);
-        logger.info({ messageId: message._id, conversationId: payload.conversationId }, 'Message broadcasted');
+        logger.info(
+          { messageId: message._id, conversationId: payload.conversationId },
+          'Message broadcasted'
+        );
       } catch (err) {
         logger.error({ err, payload }, 'Failed to send message');
         socket.emit('error', { message: 'Failed to send message' });

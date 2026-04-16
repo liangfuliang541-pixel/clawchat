@@ -2,11 +2,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Request, Response } from 'express';
 import { register, login, getProfile } from './authController.js';
 import { User } from '../models/User.js';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 // Mock User model
 vi.mock('../models/User.js');
-vi.mock('jsonwebtoken');
+vi.mock('jsonwebtoken', () => ({
+  default: {
+    sign: vi.fn(),
+    verify: vi.fn(),
+  },
+}));
 vi.mock('../config/logger.js', () => ({
   logger: {
     error: vi.fn(),

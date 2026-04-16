@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
-import type { User as IUser, Message as IMessage, Conversation as IConversation } from '@clawchat/shared';
+import type {
+  User as IUser,
+  Message as IMessage,
+  Conversation as IConversation,
+} from '@clawchat/shared';
 
 // ============================================
 // 🧪 In-Memory Mock Database for Quick API Validation

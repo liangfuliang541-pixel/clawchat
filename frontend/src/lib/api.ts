@@ -30,8 +30,7 @@ export const authApi = {
     api.post<ApiResponse<AuthResponse>>('/auth/register', data).then((r) => r.data.data),
   login: (data: LoginDTO) =>
     api.post<ApiResponse<AuthResponse>>('/auth/login', data).then((r) => r.data.data),
-  getProfile: () =>
-    api.get<ApiResponse<User>>('/auth/profile').then((r) => r.data.data),
+  getProfile: () => api.get<ApiResponse<User>>('/auth/profile').then((r) => r.data.data),
 };
 
 export default api;

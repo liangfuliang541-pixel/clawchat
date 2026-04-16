@@ -21,7 +21,8 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-const signToken = (userId: string) => jwt.sign({ userId }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
+const signToken = (userId: string) =>
+  jwt.sign({ userId }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 
 const toUserResponse = (user: any): any => ({
   _id: user._id.toString?.() || user._id,
@@ -42,9 +43,13 @@ export const register = async (req: Request, res: Response) => {
     if (process.env.USE_MOCK_DB === 'true') {
       user = await mockDB.createUser(data);
     } else {
-      const exists = await User.findOne({ $or: [{ email: data.email }, { username: data.username }] });
+      const exists = await User.findOne({
+        $or: [{ email: data.email }, { username: data.username }],
+      });
       if (exists) {
-        res.status(409).json({ success: false, message: 'User already exists' } as ApiResponse<null>);
+        res
+          .status(409)
+          .json({ success: false, message: 'User already exists' } as ApiResponse<null>);
         return;
       }
       user = await User.create(data);

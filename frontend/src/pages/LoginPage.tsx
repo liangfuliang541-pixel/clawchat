@@ -5,7 +5,7 @@ import { authApi } from '../lib/api';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
-  const { setUser } = useAuthStore();
+  const { setAuth } = useAuthStore();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
@@ -27,26 +27,17 @@ export const LoginPage = () => {
     setError('');
 
     try {
-      if (isLogin) {
-        const response = await authApi.login({
-          email: formData.email,
-          password: formData.password,
-        });
-        setUser(response.user);
-        localStorage.setItem('clawchat_token', response.token);
-        navigate('/chat');
-      } else {
-        const response = await authApi.register({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-        });
-        setUser(response.user);
-        localStorage.setItem('clawchat_token', response.token);
-        navigate('/chat');
-      }
+      const response = isLogin
+        ? await authApi.login({ email: formData.email, password: formData.password })
+        : await authApi.register({
+            username: formData.username,
+            email: formData.email,
+            password: formData.password,
+          });
+      setAuth(response.user, response.token);
+      navigate('/chat');
     } catch (err: any) {
-      setError(err.response?.data?.message || '操作失败，请重试');
+      setError(err.message || '操作失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -58,23 +49,15 @@ export const LoginPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-indigo-600">🦞</h1>
           <h2 className="mt-2 text-2xl font-bold text-gray-900">ClawChat</h2>
-          <p className="mt-1 text-gray-600">
-            {isLogin ? '登录你的账号' : '创建新账号'}
-          </p>
+          <p className="mt-1 text-gray-600">{isLogin ? '登录你的账号' : '创建新账号'}</p>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                用户名
-              </label>
+              <label className="block text-sm font-medium text-gray-700">用户名</label>
               <input
                 type="text"
                 name="username"
@@ -82,15 +65,13 @@ export const LoginPage = () => {
                 onChange={handleChange}
                 placeholder="输入用户名"
                 required={!isLogin}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              邮箱
-            </label>
+            <label className="block text-sm font-medium text-gray-700">邮箱</label>
             <input
               type="email"
               name="email"
@@ -98,14 +79,12 @@ export const LoginPage = () => {
               onChange={handleChange}
               placeholder="输入邮箱"
               required
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              密码
-            </label>
+            <label className="block text-sm font-medium text-gray-700">密码</label>
             <input
               type="password"
               name="password"
@@ -113,14 +92,15 @@ export const LoginPage = () => {
               onChange={handleChange}
               placeholder="输入密码"
               required
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none"
+              minLength={6}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 py-2 font-semibold text-white hover:bg-indigo-700 disabled:bg-gray-400"
+            className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 disabled:bg-gray-400"
           >
             {loading ? '加载中...' : isLogin ? '登录' : '注册'}
           </button>
@@ -135,7 +115,7 @@ export const LoginPage = () => {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="ml-2 text-indigo-600 font-semibold hover:underline"
+              className="ml-2 font-semibold text-indigo-600 hover:underline"
             >
               {isLogin ? '注册' : '登录'}
             </button>

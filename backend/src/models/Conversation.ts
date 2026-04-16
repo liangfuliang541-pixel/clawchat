@@ -1,7 +1,8 @@
 import mongoose, { Schema, type Document } from 'mongoose';
 import type { Conversation as IConversation } from '@clawchat/shared';
 
-export interface IConversationDoc extends Omit<IConversation, '_id' | 'participants' | 'lastMessage'>, Document {
+export interface IConversationDoc
+  extends Omit<IConversation, '_id' | 'participants' | 'lastMessage'>, Document {
   participants: mongoose.Types.ObjectId[];
   lastMessage?: mongoose.Types.ObjectId;
 }

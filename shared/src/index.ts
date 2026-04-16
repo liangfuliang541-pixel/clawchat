@@ -68,7 +68,11 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  send_message: (payload: { conversationId: string; content: string; type?: Message['type'] }) => void;
+  send_message: (payload: {
+    conversationId: string;
+    content: string;
+    type?: Message['type'];
+  }) => void;
   typing: (payload: { conversationId: string }) => void;
   read_message: (payload: { messageId: string; conversationId: string }) => void;
   join_conversation: (conversationId: string) => void;
