@@ -58,6 +58,7 @@ io.use(socketAuthMiddleware);
 registerSocketHandlers(io);
 
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
 
 const start = async () => {
   if (!USE_MOCK) {
@@ -65,8 +66,8 @@ const start = async () => {
   } else {
     logger.info('🧪 Running with MOCK database (USE_MOCK_DB=true)');
   }
-  httpServer.listen(Number(PORT), '127.0.0.1', () => {
-    logger.info(`🦞 ClawChat backend running on http://localhost:${PORT}`);
+  httpServer.listen(Number(PORT), HOST, () => {
+    logger.info(`🦞 ClawChat backend running on http://${HOST}:${PORT}`);
   });
 };
 

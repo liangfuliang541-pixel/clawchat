@@ -44,10 +44,11 @@ export const ChatArea = () => {
   // Socket connection
   useEffect(() => {
     if (!user) return;
-    const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace('/api', '');
+    const socketUrl =
+      (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace('/api', '') || undefined;
     const token = localStorage.getItem('clawchat_token');
 
-    const socket = io(apiUrl, {
+    const socket = io(socketUrl, {
       auth: { token },
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
