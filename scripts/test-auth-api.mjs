@@ -1,5 +1,5 @@
 // Quick integration test for auth API
-const BASE = 'http://localhost:8765';
+const BASE = 'http://localhost:3001';
 
 const req = async (path, opts = {}) => {
   const res = await fetch(`${BASE}${path}`, {
