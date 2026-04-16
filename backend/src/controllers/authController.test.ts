@@ -1,17 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { register, login, getProfile } from './authController.js';
-import { User } from '../models/User.js';
-import jwt from 'jsonwebtoken';
+import { authService } from '../services/AuthService.js';
 
-// Mock User model
-vi.mock('../models/User.js');
-vi.mock('jsonwebtoken', () => ({
-  default: {
-    sign: vi.fn(),
-    verify: vi.fn(),
+vi.mock('../services/AuthService.js', () => ({
+  authService: {
+    register: vi.fn(),
+    login: vi.fn(),
+    getProfile: vi.fn(),
   },
 }));
+
 vi.mock('../config/logger.js', () => ({
   logger: {
     error: vi.fn(),
@@ -22,16 +21,13 @@ vi.mock('../config/logger.js', () => ({
 describe('authController', () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
+  let next: NextFunction;
 
   beforeEach(() => {
-    req = {
-      body: {},
-      headers: {},
-    };
-    res = {
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn().mockReturnThis(),
-    };
+    req = { body: {}, headers: {} };
+    res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+    next = vi.fn() as unknown as NextFunction;
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -40,211 +36,83 @@ describe('authController', () => {
 
   describe('register', () => {
     it('should register a new user successfully', async () => {
-      const mockUser = {
-        _id: { toString: () => 'user123' },
-        username: 'testuser',
-        email: 'test@example.com',
-        avatar: '',
-        bio: '',
-        status: 'offline',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockResponse = {
+        success: true,
+        data: {
+          user: { username: 'testuser', email: 'test@example.com' },
+          token: 'mock-token',
+        },
       };
+      vi.mocked(authService.register).mockResolvedValue(mockResponse as any);
 
-      vi.mocked(User.findOne).mockResolvedValue(null);
-      vi.mocked(User.create).mockResolvedValue(mockUser as any);
-      vi.mocked(jwt.sign).mockReturnValue('mock-token');
-
-      req.body = {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'password123',
-      };
-
-      await register(req as Request, res as Response);
+      req.body = { username: 'testuser', email: 'test@example.com', password: 'password123' };
+      await register(req as Request, res as Response, next);
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          data: expect.objectContaining({
-            user: expect.objectContaining({
-              username: 'testuser',
-              email: 'test@example.com',
-            }),
-            token: 'mock-token',
-          }),
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith(mockResponse);
     });
 
-    it('should return 409 if user already exists', async () => {
-      vi.mocked(User.findOne).mockResolvedValue({ email: 'test@example.com' } as any);
+    it('should call next with error on failure', async () => {
+      const error = new Error('User already exists');
+      vi.mocked(authService.register).mockRejectedValue(error);
 
-      req.body = {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'password123',
-      };
+      req.body = { username: 'testuser', email: 'test@example.com', password: 'password123' };
+      await register(req as Request, res as Response, next);
 
-      await register(req as Request, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(409);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User already exists',
-        })
-      );
-    });
-
-    it('should return 400 for invalid email', async () => {
-      req.body = {
-        username: 'testuser',
-        email: 'invalid-email',
-        password: 'password123',
-      };
-
-      await register(req as Request, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    it('should return 400 for short password', async () => {
-      req.body = {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: '123', // Less than 6 chars
-      };
-
-      await register(req as Request, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 
   describe('login', () => {
     it('should login user successfully', async () => {
-      const mockUser = {
-        _id: { toString: () => 'user123' },
-        username: 'testuser',
-        email: 'test@example.com',
-        avatar: '',
-        bio: '',
-        status: 'offline',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        comparePassword: vi.fn().mockResolvedValue(true),
-        save: vi.fn().mockResolvedValue(undefined),
+      const mockResponse = {
+        success: true,
+        data: {
+          user: { email: 'test@example.com' },
+          token: 'mock-token',
+        },
       };
+      vi.mocked(authService.login).mockResolvedValue(mockResponse as any);
 
-      vi.mocked(User.findOne).mockReturnValue({
-        select: vi.fn().mockResolvedValue(mockUser),
-      } as any);
-      vi.mocked(jwt.sign).mockReturnValue('mock-token');
+      req.body = { email: 'test@example.com', password: 'password123' };
+      await login(req as Request, res as Response, next);
 
-      req.body = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-
-      await login(req as Request, res as Response);
-
-      expect(res.status).not.toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          data: expect.objectContaining({
-            user: expect.objectContaining({
-              email: 'test@example.com',
-            }),
-            token: 'mock-token',
-          }),
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith(mockResponse);
     });
 
-    it('should return 401 for invalid credentials', async () => {
-      vi.mocked(User.findOne).mockReturnValue({
-        select: vi.fn().mockResolvedValue(null),
-      } as any);
+    it('should call next with error on failure', async () => {
+      const error = new Error('Invalid credentials');
+      vi.mocked(authService.login).mockRejectedValue(error);
 
-      req.body = {
-        email: 'test@example.com',
-        password: 'wrongpassword',
-      };
+      req.body = { email: 'test@example.com', password: 'wrongpassword' };
+      await login(req as Request, res as Response, next);
 
-      await login(req as Request, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Invalid credentials',
-        })
-      );
-    });
-
-    it('should return 400 for invalid email format', async () => {
-      req.body = {
-        email: 'not-an-email',
-        password: 'password123',
-      };
-
-      await login(req as Request, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 
   describe('getProfile', () => {
     it('should return user profile', async () => {
-      const mockUser = {
-        _id: { toString: () => 'user123' },
-        username: 'testuser',
-        email: 'test@example.com',
-        avatar: '',
-        bio: '',
-        status: 'online',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const mockResponse = {
+        success: true,
+        data: { username: 'testuser', email: 'test@example.com' },
       };
+      vi.mocked(authService.getProfile).mockResolvedValue(mockResponse as any);
 
-      vi.mocked(User.findById).mockReturnValue({
-        select: vi.fn().mockResolvedValue(mockUser),
-      } as any);
+      (req as any).userId = 'user123';
+      await getProfile(req as any, res as Response, next);
 
-      req.userId = 'user123';
-
-      await getProfile(req as any, res as Response);
-
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: true,
-          data: expect.objectContaining({
-            username: 'testuser',
-            email: 'test@example.com',
-          }),
-        })
-      );
+      expect(res.json).toHaveBeenCalledWith(mockResponse);
     });
 
-    it('should return 404 if user not found', async () => {
-      vi.mocked(User.findById).mockReturnValue({
-        select: vi.fn().mockResolvedValue(null),
-      } as any);
+    it('should call next with error on failure', async () => {
+      const error = new Error('User not found');
+      vi.mocked(authService.getProfile).mockRejectedValue(error);
 
-      req.userId = 'nonexistent';
+      (req as any).userId = 'nonexistent';
+      await getProfile(req as any, res as Response, next);
 
-      await getProfile(req as any, res as Response);
-
-      expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not found',
-        })
-      );
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 });

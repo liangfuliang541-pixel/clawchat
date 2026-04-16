@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { authApi } from './lib/api';
 import { LoginPage } from './pages/LoginPage';
-import { ChatPage } from './pages/ChatPage';
+import ChatPage from './pages/ChatPage';
 
 function AppRoutes() {
   const { user, isLoading, setUser, logout } = useAuthStore();
@@ -16,7 +16,7 @@ function AppRoutes() {
     }
     authApi
       .getProfile()
-      .then((u) => setUser(u))
+      .then((u: import('@clawchat/shared').User) => setUser(u))
       .catch(() => logout())
       .finally(() => useAuthStore.getState().setLoading(false));
   }, [setUser, logout]);

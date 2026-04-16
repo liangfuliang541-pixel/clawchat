@@ -1,86 +1,54 @@
 import type { Server } from 'socket.io';
 import type { ServerToClientEvents, ClientToServerEvents } from '@clawchat/shared';
 import { logger } from '../config/logger.js';
-import { Message } from '../models/Message.js';
-import { Conversation } from '../models/Conversation.js';
+import { messageService } from '../services/index.js';
+import { userRepository } from '../repositories/index.js';
 import type { AuthenticatedSocket } from './auth.js';
 
 export { socketAuthMiddleware } from './auth.js';
 
+const typingThrottles = new Map<string, ReturnType<typeof setTimeout>>();
+
 export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerToClientEvents>) => {
   io.on('connection', (socket: AuthenticatedSocket) => {
-    logger.info({ socketId: socket.id }, 'Socket connected');
+    const userId = socket.userId!;
+    logger.info({ socketId: socket.id, userId }, 'Socket connected');
 
-    // Middleware to extract userId from query params (client sends it on connection)
-    socket.userId = socket.handshake.query.userId as string;
+    socket.broadcast.emit('user_status_changed', { userId, status: 'online' });
+    userRepository.updateStatus(userId, 'online').catch(() => {});
 
     socket.on('join_conversation', (conversationId) => {
       socket.join(conversationId);
-      logger.info(
-        { socketId: socket.id, conversationId, userId: socket.userId },
-        'Joined conversation'
-      );
+      logger.info({ socketId: socket.id, conversationId, userId }, 'Joined conversation');
+      socket.to(conversationId).emit('user_status_changed', { userId, status: 'online' });
 
-      // Notify others in the room
-      socket.to(conversationId).emit('user_status_changed', {
-        userId: socket.userId || 'unknown',
-        status: 'online',
-      });
+      messageService
+        .getHistory(conversationId, 50)
+        .then((result) => {
+          const unread = result.items.filter((m) => m.sender !== userId && !m.isRead);
+          if (unread.length > 0) {
+            socket.emit('unread_messages', { conversationId, messages: unread });
+          }
+        })
+        .catch(() => {});
     });
 
     socket.on('leave_conversation', (conversationId) => {
       socket.leave(conversationId);
-      logger.info({ socketId: socket.id, conversationId }, 'Left conversation');
-
-      // Notify others in the room
-      socket.to(conversationId).emit('user_status_changed', {
-        userId: socket.userId || 'unknown',
-        status: 'away',
-      });
+      logger.info({ socketId: socket.id, conversationId, userId }, 'Left conversation');
+      socket.to(conversationId).emit('user_status_changed', { userId, status: 'away' });
     });
 
     socket.on('send_message', async (payload) => {
       try {
-        if (!socket.userId) {
-          logger.warn({ socketId: socket.id }, 'Message sent without userId');
-          return;
-        }
-
-        // Persist message to database
-        const message = await Message.create({
-          sender: socket.userId,
-          receiver: payload.receiver || socket.userId, // For group conversations
+        const message = await messageService.sendMessage({
+          senderId: userId,
           conversationId: payload.conversationId,
           content: payload.content,
           type: payload.type || 'text',
-          fileUrl: payload.fileUrl,
-          isRead: false,
         });
 
-        // Populate sender info
-        const populatedMessage = await message.populate('sender', 'username avatar');
-
-        // Format response
-        const messageResponse = {
-          _id: message._id.toString(),
-          sender: message.sender.toString(),
-          receiver: message.receiver.toString(),
-          conversationId: message.conversationId,
-          content: message.content,
-          type: message.type,
-          fileUrl: message.fileUrl,
-          isRead: message.isRead,
-          createdAt: message.createdAt.toISOString(),
-        };
-
-        // Update conversation's lastMessage
-        await Conversation.findByIdAndUpdate(payload.conversationId, {
-          lastMessage: message._id,
-          updatedAt: new Date(),
-        });
-
-        // Broadcast to room members
-        io.to(payload.conversationId).emit('receive_message', messageResponse);
+        io.to(payload.conversationId).emit('receive_message', message);
         logger.info(
           { messageId: message._id, conversationId: payload.conversationId },
           'Message broadcasted'
@@ -91,15 +59,36 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
       }
     });
 
-    socket.on('typing', (payload) => {
-      socket.to(payload.conversationId).emit('user_typing', {
-        conversationId: payload.conversationId,
-        userId: socket.userId || 'unknown',
-      });
+    socket.on('read_message', async (payload) => {
+      try {
+        await messageService.markAsRead(payload.messageId);
+        io.to(payload.conversationId).emit('message_read', {
+          messageId: payload.messageId,
+          conversationId: payload.conversationId,
+          userId,
+        });
+      } catch (err) {
+        logger.error({ err }, 'Failed to mark message as read');
+      }
     });
 
-    socket.on('disconnect', () => {
-      logger.info({ socketId: socket.id, userId: socket.userId }, 'Socket disconnected');
+    socket.on('typing', (payload) => {
+      const key = `${userId}:${payload.conversationId}`;
+      if (typingThrottles.has(key)) return;
+
+      socket.to(payload.conversationId).emit('user_typing', {
+        conversationId: payload.conversationId,
+        userId,
+      });
+
+      const timer = setTimeout(() => typingThrottles.delete(key), 200);
+      typingThrottles.set(key, timer);
+    });
+
+    socket.on('disconnect', async () => {
+      logger.info({ socketId: socket.id, userId }, 'Socket disconnected');
+      socket.broadcast.emit('user_status_changed', { userId, status: 'offline' });
+      await userRepository.updateStatus(userId, 'offline').catch(() => {});
     });
   });
 };

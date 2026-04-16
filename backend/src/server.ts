@@ -8,7 +8,11 @@ import { connectDB } from './config/database.js';
 import { logger } from './config/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
-import { registerSocketHandlers } from './sockets/index.js';
+import messageRoutes from './routes/messageRoutes.js';
+import conversationRoutes from './routes/conversationRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import friendshipRoutes from './routes/friendshipRoutes.js';
+import { registerSocketHandlers, socketAuthMiddleware } from './sockets/index.js';
 
 dotenv.config();
 
@@ -41,6 +45,10 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/conversations', conversationRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/friendships', friendshipRoutes);
 
 // Error handling
 app.use(errorHandler);
@@ -57,7 +65,7 @@ const start = async () => {
   } else {
     logger.info('🧪 Running with MOCK database (USE_MOCK_DB=true)');
   }
-  httpServer.listen(PORT, '127.0.0.1', () => {
+  httpServer.listen(Number(PORT), '127.0.0.1', () => {
     logger.info(`🦞 ClawChat backend running on http://localhost:${PORT}`);
   });
 };

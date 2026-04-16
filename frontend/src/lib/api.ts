@@ -1,36 +1,52 @@
-import axios, { type AxiosError } from 'axios';
-import type { ApiResponse, AuthResponse, LoginDTO, RegisterDTO, User } from '@clawchat/shared';
+import type {
+  Conversation,
+  Message,
+  User,
+  RegisterDTO,
+  LoginDTO,
+  AuthResponse,
+} from '@clawchat/shared';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001/api';
 
-api.interceptors.request.use((config) => {
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('clawchat_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_URL}${url}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `HTTP ${res.status}`);
   }
-  return config;
-});
+  const data = await res.json();
+  return data.data as T;
+}
 
-api.interceptors.response.use(
-  (res) => res,
-  (err: AxiosError<ApiResponse<unknown>>) => {
-    const msg = err.response?.data?.message || err.message || 'Network error';
-    return Promise.reject(new Error(msg));
-  }
-);
-
-// Auth APIs
 export const authApi = {
-  register: (data: RegisterDTO) =>
-    api.post<ApiResponse<AuthResponse>>('/auth/register', data).then((r) => r.data.data),
   login: (data: LoginDTO) =>
-    api.post<ApiResponse<AuthResponse>>('/auth/login', data).then((r) => r.data.data),
-  getProfile: () => api.get<ApiResponse<User>>('/auth/profile').then((r) => r.data.data),
+    fetchJson<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  register: (data: RegisterDTO) =>
+    fetchJson<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  getProfile: () => fetchJson<User>('/auth/profile'),
 };
 
-export default api;
+export const conversationApi = {
+  getList: () => fetchJson<Conversation[]>('/conversations'),
+  create: (payload: { name?: string; participants: string[]; isGroup?: boolean }) =>
+    fetchJson<Conversation>('/conversations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const messageApi = {
+  getHistory: (conversationId: string, params?: { limit?: number; before?: string }) =>
+    fetchJson<{ items: Message[]; nextCursor?: string }>(
+      `/messages/${conversationId}?${new URLSearchParams(params as Record<string, string>).toString()}`
+    ),
+};

@@ -64,7 +64,9 @@ export interface ServerToClientEvents {
   receive_message: (message: Message) => void;
   user_typing: (data: { conversationId: string; userId: string }) => void;
   user_status_changed: (data: { userId: string; status: User['status'] }) => void;
-  message_read: (data: { messageId: string; conversationId: string }) => void;
+  message_read: (data: { messageId: string; conversationId: string; userId: string }) => void;
+  unread_messages: (data: { conversationId: string; messages: Message[] }) => void;
+  error: (data: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
