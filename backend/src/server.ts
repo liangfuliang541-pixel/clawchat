@@ -12,6 +12,8 @@ import { registerSocketHandlers } from './sockets/index.js';
 
 dotenv.config();
 
+// 全局JWT Secret - 确保一致性
+export const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const USE_MOCK = process.env.USE_MOCK_DB === 'true';
 
 const app = express();
@@ -49,7 +51,7 @@ const start = async () => {
   } else {
     logger.info('🧪 Running with MOCK database (USE_MOCK_DB=true)');
   }
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '127.0.0.1', () => {
     logger.info(`🦞 ClawChat backend running on http://localhost:${PORT}`);
   });
 };

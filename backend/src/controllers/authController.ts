@@ -7,8 +7,8 @@ import { mockDB } from '../config/mockDatabase.js';
 import type { ApiResponse, AuthResponse } from '@clawchat/shared';
 
 const JWT_EXPIRES_IN = '7d';
-const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me';
-
+// 必须运行时读取，避免ESM加载顺序导致dotenv未生效
+const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 
 const registerSchema = z.object({
   username: z.string().min(3).max(30),

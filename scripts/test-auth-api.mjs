@@ -1,5 +1,5 @@
 // Quick integration test for auth API
-const BASE = 'http://localhost:3001';
+const BASE = 'http://localhost:8765';
 
 const req = async (path, opts = {}) => {
   const res = await fetch(`${BASE}${path}`, {
@@ -11,11 +11,9 @@ const req = async (path, opts = {}) => {
 };
 
 async function run() {
-  // 1. Health check
   const health = await req('/health');
   console.log('Health:', health);
 
-  // 2. Register
   const register = await req('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
@@ -33,7 +31,6 @@ async function run() {
 
   const token = register.data.data.token;
 
-  // 3. Login
   const login = await req('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({
@@ -43,7 +40,6 @@ async function run() {
   });
   console.log('Login:', login);
 
-  // 4. Get Profile
   const profile = await req('/api/auth/profile', {
     headers: { Authorization: `Bearer ${token}` },
   });
