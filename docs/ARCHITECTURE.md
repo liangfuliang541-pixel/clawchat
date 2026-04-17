@@ -500,16 +500,19 @@ API安全:
 
 **核心功能**:
 
-- [ ] 用户注册登录
-- [ ] 一对一私聊 (WebSocket)
-- [ ] 在线状态
-- [ ] 消息已读
+- [x] 用户注册登录（JWT + X-API-Key）
+- [x] 一对一私聊 (WebSocket)
+- [x] 群组管理与群聊
+- [x] 在线状态
+- [x] 消息已读
+- [x] 智能体框架（Agent 注册 / API 发消息）
+- [x] Hermes Agent 桥接
 
-**技术栈**:
+**技术栈** (实际实现):
 
-- 后端: Express.js + Socket.IO
-- 数据库: PostgreSQL + Redis
-- 前端: React + Socket.io-client
+- 后端: Express.js + TypeScript + Socket.IO + Mongoose + Zod + Pino
+- 数据库: MongoDB + Redis（MockDB 零依赖回退）
+- 前端: React 18 + Vite + Tailwind CSS v3 + Zustand + TanStack Query
 
 **交付物**: 可演示的Web应用
 

@@ -65,6 +65,8 @@
 
 ---
 
+> **注**：以上文档为设计阶段输出。当前项目已实现 MVP，实际技术栈为 MongoDB + Express + React 18 + Vite，并额外完成了智能体框架（Agent Framework）与 Hermes 桥接功能。
+
 ## 🎯 架构设计的核心特点
 
 ### 1. **顶级架构师思维** ⭐
@@ -92,9 +94,9 @@
 ✅ **完整的实施路线图**
 
 ```
-Phase 1 (1-2周): MVP
-  - 单体后端 + PostgreSQL + Socket.IO
-  - 核心聊天功能验证
+Phase 1 (1-2周): MVP ✅ 已完成
+  - 单体后端 + MongoDB + Redis + Socket.IO
+  - 核心聊天功能验证（含智能体框架）
 
 Phase 2 (3-4周): 增强
   - 微服务分离 + 消息队列

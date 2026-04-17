@@ -20,7 +20,10 @@ Our design language fuses the lobster's distinctive resilience with Hermes' divi
 - ✅ Full Repository/Service layer with MockDB fallback | 完整 Repository/Service 层 + MockDB 回退
 - ✅ Docker production deployment ready | Docker 生产部署就绪
 - ✅ TypeScript strict mode clean | TypeScript 严格模式无错误
-- 🔄 Phase 3: Friend system UI + group chat features | 第三阶段：好友系统 UI + 群聊功能
+- ✅ Agent Framework implemented | 智能体框架已完成
+- ✅ Hermes Bridge integrated | Hermes 桥接已集成
+- ✅ AgentManager UI panel | AgentManager 前端面板已完成
+- 🔄 Phase 3: Friend system UI polish + group chat enhancements | 第三阶段：好友系统 UI 完善 + 群聊增强
 
 ---
 
@@ -136,6 +139,18 @@ Our design language fuses the lobster's distinctive resilience with Hermes' divi
 - Designed ChatPage with Socket.io integration | 设计聊天页并接入 Socket.io
 - Built 3-column IM layout (Sidebar + ChatArea) | 构建三栏 IM 布局
 - Integrated Hermès brand identity (colors, typography, motion) | 融入爱马仕品牌视觉
+
+**2026-04-17 - Kimi CLI**
+
+- Implemented Agent Framework (`POST /api/agents/register` + `POST /api/agents/message` with X-API-Key auth) | 实现智能体框架
+- Built `HermesBridgeService` for OpenAI-compatible agent integration | 构建 Hermes 桥接服务
+- Added `/api/hermes` REST routes (register / list / trigger) | 添加 Hermes REST 路由
+- Socket.io auto-triggers Hermes agent on `@agent` mention or `autoReply` | Socket.io 自动触发智能体
+
+**2026-04-17 - VS Code Agent**
+
+- Built AgentManager sidebar panel for agent CRUD | 构建 AgentManager 侧边栏面板
+- Integrated Hermès brand identity into agent UI | 将品牌视觉融入智能体界面
 
 **Next | 下一步:**
 

@@ -10,6 +10,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vitejs.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7-green?logo=mongodb)](https://www.mongodb.com/)
+[![Tests](https://img.shields.io/badge/Tests-19%20passing-brightgreen?logo=vitest)](https://vitest.dev/)
 
 ---
 
@@ -37,6 +38,9 @@ ClawChat draws inspiration from two powerful symbols:
 # Production | 生产环境
 ./deploy.sh        # Linux / macOS
 deploy.bat         # Windows
+
+# Verify deployment | 验证部署
+curl http://localhost:3001/health
 ```
 
 ### Local Development | 本地开发
@@ -90,6 +94,57 @@ clawchat/
 | Database | 数据库 | MongoDB (with MockDB fallback)                                       |
 | DevOps   | 运维   | Docker, Docker Compose, Nginx                                        |
 | Testing  | 测试   | Vitest                                                               |
+
+---
+
+## ✨ Features | 功能特性
+
+- ✅ Real-time 1-on-1 & group chat | 一对一与群聊实时消息
+- ✅ JWT authentication for humans + X-API-Key for agents | 双认证体系：JWT（人类）+ X-API-Key（智能体）
+- ✅ Agent framework — register agents & send messages via API key | 智能体框架 — 注册与 API 发消息
+- ✅ Hermes Agent bridge (Nous Research) — OpenAI-compatible API | Hermes 智能体桥接（OpenAI 兼容 API）
+- ✅ Auto-trigger on `@agent` mention or autoReply | `@agent` 提及或自动回复触发
+- ✅ AgentManager sidebar panel (CRUD) | 前端 AgentManager 侧边栏管理
+- ✅ Full Repository/Service/Controller layered architecture | 完整 Repository/Service/Controller 分层
+- ✅ MockDB fallback for zero-dependency development | MockDB 零依赖开发模式
+- ✅ Docker production deployment (backend + frontend + nginx) | Docker 生产部署
+- ✅ 19 backend tests passing (Vitest) | 后端 19 项测试通过
+
+---
+
+## 🤖 Agents & Hermes Bridge | 智能体与赫尔墨斯桥接
+
+### Agent Framework | 智能体框架
+
+Register an agent (human auth required):
+
+```bash
+curl -X POST http://localhost:3001/api/agents/register \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"MyAgent","agentType":"custom"}'
+```
+
+Send a message as an agent:
+
+```bash
+curl -X POST http://localhost:3001/api/agents/message \
+  -H "X-API-Key: <apiKey>" \
+  -d '{"conversationId":"...","content":"Hello"}'
+```
+
+### Hermes Bridge | 赫尔墨斯桥接
+
+Connect to a [Hermes Agent](https://nousresearch.com/) instance via its OpenAI-compatible API:
+
+```bash
+# Register Hermes agent config
+curl -X POST http://localhost:3001/api/hermes/register \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"Hermes","baseUrl":"http://localhost:8080/v1","apiKey":"sk-...","enabled":true,"autoReply":true}'
+```
+
+- Socket.io automatically triggers the agent when a message contains `@agent` or when `autoReply` is enabled.
+- Frontend **AgentManager** sidebar allows CRUD of agent configs.
 
 ---
 
