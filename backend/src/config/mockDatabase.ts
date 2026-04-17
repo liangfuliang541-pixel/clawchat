@@ -23,11 +23,25 @@ type FriendshipDoc = {
   updatedAt: string;
 };
 
+type HermesConfigDoc = {
+  _id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model?: string;
+  enabled: boolean;
+  autoReply?: boolean;
+  systemPrompt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 class MockDB {
   users = new Map<string, UserDoc>();
   messages = new Map<string, MessageDoc>();
   conversations = new Map<string, ConversationDoc>();
   friendships = new Map<string, FriendshipDoc>();
+  hermesConfigs = new Map<string, HermesConfigDoc>();
   emailIndex = new Map<string, string>();
   usernameIndex = new Map<string, string>();
 
@@ -279,6 +293,61 @@ class MockDB {
         (f.requester === userB && f.recipient === userA)
     )?._id;
     if (id) this.friendships.delete(id);
+  }
+
+  // Hermes Configs
+  async createHermesConfig(
+    data: Omit<HermesConfigDoc, '_id' | 'createdAt' | 'updatedAt'>
+  ): Promise<HermesConfigDoc> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const cfg: HermesConfigDoc = { _id: id, ...data, createdAt: now, updatedAt: now };
+    this.hermesConfigs.set(id, cfg);
+    return cfg;
+  }
+
+  async findHermesConfigByName(name: string): Promise<HermesConfigDoc | null> {
+    return Array.from(this.hermesConfigs.values()).find((c) => c.name === name) ?? null;
+  }
+
+  async findHermesConfigs(filter?: { enabled?: boolean }): Promise<HermesConfigDoc[]> {
+    let all = Array.from(this.hermesConfigs.values());
+    if (filter?.enabled !== undefined) {
+      all = all.filter((c) => c.enabled === filter.enabled);
+    }
+    return all;
+  }
+
+  async upsertHermesConfig(data: {
+    name: string;
+    baseUrl: string;
+    apiKey: string;
+    model?: string;
+    enabled?: boolean;
+    autoReply?: boolean;
+    systemPrompt?: string;
+  }): Promise<HermesConfigDoc> {
+    const existing = Array.from(this.hermesConfigs.values()).find((c) => c.name === data.name);
+    const now = new Date().toISOString();
+    if (existing) {
+      Object.assign(existing, data, { updatedAt: now });
+      return existing;
+    }
+    const id = randomUUID();
+    const cfg: HermesConfigDoc = {
+      _id: id,
+      ...data,
+      enabled: data.enabled ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.hermesConfigs.set(id, cfg);
+    return cfg;
+  }
+
+  async deleteHermesConfig(name: string): Promise<void> {
+    const id = Array.from(this.hermesConfigs.entries()).find(([, c]) => c.name === name)?.[0];
+    if (id) this.hermesConfigs.delete(id);
   }
 }
 

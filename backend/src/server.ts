@@ -15,6 +15,9 @@ import friendshipRoutes from './routes/friendshipRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
 import hermesRoutes from './routes/hermesRoutes.js';
 import { registerSocketHandlers, socketAuthMiddleware } from './sockets/index.js';
+import { hermesBridgeService } from './services/HermesBridgeService.js';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 
 dotenv.config();
 
@@ -28,6 +31,18 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+// Redis Adapter for multi-instance broadcasting
+if (process.env.REDIS_URI) {
+  const pubClient = createClient({ url: process.env.REDIS_URI });
+  const subClient = pubClient.duplicate();
+  Promise.all([pubClient.connect(), subClient.connect()])
+    .then(() => {
+      io.adapter(createAdapter(pubClient, subClient));
+      logger.info('Socket.io Redis adapter attached');
+    })
+    .catch((err) => logger.error({ err }, 'Failed to attach Redis adapter'));
+}
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
@@ -70,6 +85,7 @@ const start = async () => {
   } else {
     logger.info('🧪 Running with MOCK database (USE_MOCK_DB=true)');
   }
+  await hermesBridgeService.loadFromDB();
   httpServer.listen(Number(PORT), HOST, () => {
     logger.info(`🦞 ClawChat backend running on http://${HOST}:${PORT}`);
   });

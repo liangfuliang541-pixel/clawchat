@@ -1,6 +1,7 @@
 import { logger } from '../config/logger.js';
 import { messageService } from './MessageService.js';
 import { conversationRepository } from '../repositories/index.js';
+import { hermesConfigRepository } from '../repositories/HermesConfigRepository.js';
 import type { Message } from '@clawchat/shared';
 
 export interface HermesAgentConfig {
@@ -19,30 +20,55 @@ export interface ChatMessage {
   content: string;
 }
 
-/**
- * 🐎 HermesBridgeService
- *
- * Bridges ClawChat conversations to external Hermes Agent instances
- * via their OpenAI-compatible API Server (/v1/chat/completions).
- *
- * Hermes Agent (by Nous Research) exposes:
- *   POST /v1/chat/completions  — standard OpenAI format
- *   POST /v1/responses         — stateful conversation (previous_response_id)
- *   GET  /v1/models            — model discovery
- *
- * This service calls the chat completions endpoint with the full
- * conversation history as the messages array.
- */
-export class HermesBridgeService {
-  private configs: Map<string, HermesAgentConfig> = new Map();
+const INVOKE_TIMEOUT_MS = 15000;
 
-  register(config: HermesAgentConfig): void {
-    this.configs.set(config._id || config.name, config);
-    logger.info({ agent: config.name, baseUrl: config.baseUrl }, 'Hermes agent registered');
+export class HermesBridgeService {
+  private configs = new Map<string, HermesAgentConfig>();
+
+  async loadFromDB(): Promise<void> {
+    try {
+      const docs = await hermesConfigRepository.findEnabled();
+      for (const doc of docs) {
+        const cfg: HermesAgentConfig = {
+          _id: doc._id.toString(),
+          name: doc.name,
+          baseUrl: doc.baseUrl,
+          apiKey: doc.apiKey,
+          model: doc.agentModel,
+          enabled: doc.enabled,
+          autoReply: doc.autoReply,
+          systemPrompt: doc.systemPrompt,
+        };
+        this.configs.set(cfg._id || cfg.name, cfg);
+      }
+      logger.info({ count: docs.length }, 'Hermes agents loaded from DB');
+    } catch (err) {
+      logger.error({ err }, 'Failed to load Hermes agents from DB');
+    }
   }
 
-  unregister(id: string): void {
+  async register(config: HermesAgentConfig): Promise<void> {
+    const saved = await hermesConfigRepository.upsertByName({
+      name: config.name,
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+      agentModel: config.model,
+      enabled: config.enabled,
+      autoReply: config.autoReply,
+      systemPrompt: config.systemPrompt,
+    });
+    const savedId = typeof saved._id === 'string' ? saved._id : saved._id.toString();
+    this.configs.set(savedId || config.name, { ...config, _id: savedId });
+    logger.info({ agent: config.name }, 'Hermes agent registered');
+  }
+
+  async unregister(id: string): Promise<void> {
+    const cfg = this.configs.get(id);
+    if (cfg) {
+      await hermesConfigRepository.deleteByName(cfg.name);
+    }
     this.configs.delete(id);
+    logger.info({ agentId: id }, 'Hermes agent unregistered');
   }
 
   getAgents(): HermesAgentConfig[] {
@@ -75,6 +101,9 @@ export class HermesBridgeService {
         'Calling Hermes Agent'
       );
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), INVOKE_TIMEOUT_MS);
+
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -86,7 +115,9 @@ export class HermesBridgeService {
           messages,
           stream: false,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => 'unknown');
@@ -107,19 +138,19 @@ export class HermesBridgeService {
       logger.info({ agent: config.name, contentLength: content.length }, 'Hermes Agent responded');
       return content;
     } catch (err) {
-      logger.error({ err, agent: config.name }, 'Hermes Agent call failed');
+      if (err instanceof Error && err.name === 'AbortError') {
+        logger.error({ agent: config.name }, 'Hermes Agent call timed out');
+      } else {
+        logger.error({ err, agent: config.name }, 'Hermes Agent call failed');
+      }
       return null;
     }
   }
 
-  /**
-   * Invoke an agent and persist its reply as a message in the conversation.
-   * Returns the created Message or null on failure.
-   */
   async invokeAndPersist(
     agentId: string,
     conversationId: string,
-    agentUserId: string, // The agent's User._id in ClawChat
+    agentUserId: string,
     history: ChatMessage[]
   ): Promise<Message | null> {
     const content = await this.invoke(agentId, conversationId, history);
@@ -135,10 +166,6 @@ export class HermesBridgeService {
     return message;
   }
 
-  /**
-   * Build OpenAI-format message history from ClawChat messages.
-   * Maps ClawChat participants to 'user' and 'assistant' roles.
-   */
   static buildHistory(
     messages: Message[],
     currentUserId: string,

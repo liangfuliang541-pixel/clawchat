@@ -16,9 +16,8 @@ const registerSchema = z.object({
 export const registerHermesAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = registerSchema.parse(req.body);
-    const id = crypto.randomUUID();
-    hermesBridgeService.register({ _id: id, ...data });
-    res.status(201).json({ success: true, data: { id, ...data, apiKey: '***' } });
+    await hermesBridgeService.register(data);
+    res.status(201).json({ success: true, data: { ...data, apiKey: '***' } });
   } catch (err) {
     logger.error({ err }, 'Register Hermes agent failed');
     next(err);

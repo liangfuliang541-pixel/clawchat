@@ -3,12 +3,11 @@ import jwt from 'jsonwebtoken';
 import type { ServerToClientEvents, ClientToServerEvents } from '@clawchat/shared';
 import { userRepository } from '../repositories/index.js';
 import { logger } from '../config/logger.js';
+import { getJwtSecret } from '../config/auth.js';
 
 export interface AuthenticatedSocket extends Socket<ClientToServerEvents, ServerToClientEvents> {
   userId?: string;
 }
-
-const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 
 export const socketAuthMiddleware = async (
   socket: AuthenticatedSocket,

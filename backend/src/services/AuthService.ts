@@ -2,10 +2,8 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { userRepository } from '../repositories/index.js';
 import { ConflictError, AuthenticationError, NotFoundError } from '../utils/AppError.js';
+import { getJwtSecret, JWT_EXPIRES_IN } from '../config/auth.js';
 import type { ApiResponse, AuthResponse, User } from '@clawchat/shared';
-
-const JWT_EXPIRES_IN = '7d';
-const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 
 const registerSchema = z.object({
   username: z.string().min(3).max(30),

@@ -2,12 +2,11 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { mockDB } from '../config/mockDatabase.js';
+import { getJwtSecret } from '../config/auth.js';
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
-
-const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

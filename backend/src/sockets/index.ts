@@ -120,67 +120,63 @@ async function maybeTriggerHermesAgent(
 
   const latestContent = latestMessage.content.toLowerCase();
 
-  for (const agentConfig of agents) {
-    if (!agentConfig.enabled) continue;
+  const triggers = agents
+    .filter((a) => a.enabled)
+    .filter((a) => {
+      const shouldTrigger =
+        latestContent.includes(`@${a.name.toLowerCase()}`) ||
+        latestContent.includes('@agent') ||
+        a.autoReply;
+      return shouldTrigger;
+    })
+    .map(async (agentConfig) => {
+      let agentUser = await userRepository.findByUsername(agentConfig.name);
+      if (!agentUser) {
+        agentUser = await userRepository.create({
+          username: agentConfig.name,
+          kind: 'agent',
+          agentType: 'hermes',
+          email: `${agentConfig.name}@hermes.local`,
+          avatar: '',
+          bio: `Hermes Agent — ${agentConfig.baseUrl}`,
+          status: 'online',
+        });
+      }
 
-    const shouldTrigger =
-      latestContent.includes(`@${agentConfig.name.toLowerCase()}`) ||
-      latestContent.includes('@agent') ||
-      agentConfig.autoReply;
+      const agentUserId = (agentUser._id.toString?.() || agentUser._id) as string;
+      const chatHistory = HermesBridgeService.buildHistory(messages, senderUserId, agentUserId);
 
-    if (!shouldTrigger) continue;
+      logger.info({ agent: agentConfig.name, conversationId }, 'Triggering Hermes Agent response');
 
-    // Find or create the agent's User record in ClawChat
-    let agentUser = await userRepository.findByUsername(agentConfig.name);
-    if (!agentUser) {
-      // Create a shadow user for this Hermes Agent
-      agentUser = await userRepository.create({
-        username: agentConfig.name,
-        kind: 'agent',
-        agentType: 'hermes',
-        email: `${agentConfig.name}@hermes.local`,
-        avatar: '',
-        bio: `Hermes Agent — ${agentConfig.baseUrl}`,
-        status: 'online',
+      io.to(conversationId).emit('user_typing', {
+        conversationId,
+        userId: agentUserId,
       });
-    }
 
-    const agentUserId = (agentUser._id.toString?.() || agentUser._id) as string;
+      const content = await hermesBridgeService.invoke(
+        agentConfig._id || agentConfig.name,
+        conversationId,
+        chatHistory
+      );
 
-    // Build OpenAI-format history
-    const chatHistory = HermesBridgeService.buildHistory(messages, senderUserId, agentUserId);
+      if (!content) {
+        logger.warn({ agent: agentConfig.name }, 'Hermes Agent returned no content');
+        return;
+      }
 
-    logger.info({ agent: agentConfig.name, conversationId }, 'Triggering Hermes Agent response');
+      const reply = await messageService.sendMessage({
+        senderId: agentUserId,
+        conversationId,
+        content,
+        type: 'text',
+      });
 
-    // Broadcast "agent is thinking" typing indicator
-    io.to(conversationId).emit('user_typing', {
-      conversationId,
-      userId: agentUserId,
+      io.to(conversationId).emit('receive_message', reply);
+      logger.info(
+        { messageId: reply._id, agent: agentConfig.name, conversationId },
+        'Hermes Agent reply broadcasted'
+      );
     });
 
-    const content = await hermesBridgeService.invoke(
-      agentConfig._id || agentConfig.name,
-      conversationId,
-      chatHistory
-    );
-
-    if (!content) {
-      logger.warn({ agent: agentConfig.name }, 'Hermes Agent returned no content');
-      continue;
-    }
-
-    // Persist the agent's reply
-    const reply = await messageService.sendMessage({
-      senderId: agentUserId,
-      conversationId,
-      content,
-      type: 'text',
-    });
-
-    io.to(conversationId).emit('receive_message', reply);
-    logger.info(
-      { messageId: reply._id, agent: agentConfig.name, conversationId },
-      'Hermes Agent reply broadcasted'
-    );
-  }
+  await Promise.all(triggers);
 }

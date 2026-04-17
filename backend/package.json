@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@clawchat/shared": "^1.0.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@types/node": "^22.19.17",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -24,6 +25,7 @@
     "mongoose": "^8.7.0",
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.0",
+    "redis": "^5.12.1",
     "socket.io": "^4.8.0",
     "zod": "^3.23.0"
   },
@@ -37,6 +39,7 @@
     "@vitest/ui": "^1.0.0",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
+    "socket.io-client": "^4.8.3",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",
