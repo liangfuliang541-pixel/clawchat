@@ -1,12 +1,17 @@
 # ClawChat
 
-一个基于 React + Node.js 的实时聊天应用，支持单聊、群聊和外部 AI Agent 接入。
+🦞 **一个 Hermès 级别的实时聊天应用** — 基于 React + Node.js 的高端即时通讯系统，支持单聊、群聊和外部 AI Agent 接入。
+
+**[English](./README_EN.md) | 简体中文**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)](https://vitejs.dev/)
+[![Express.js](https://img.shields.io/badge/Express-5-black?logo=express)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-7-green?logo=mongodb)](https://www.mongodb.com/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4-black?logo=socket.io)](https://socket.io/)
 [![Tests](https://img.shields.io/badge/Tests-19%20passing-brightgreen?logo=vitest)](https://vitest.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
 ---
 
@@ -85,6 +90,7 @@ clawchat/
 
 - 实时一对一与群聊（Socket.io）
 - JWT 用户认证 + X-API-Key Agent 认证
+- 消息引用/回复、消息撤回（2 分钟内）
 - 外部 AI Agent 接入：注册 Agent、通过 API Key 发消息、`@agent` 提及自动触发
 - AgentManager 前端面板，管理 Hermes Agent 配置
 - 完整的 Repository/Service/Controller 分层架构

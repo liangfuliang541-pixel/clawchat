@@ -177,6 +177,16 @@ class MockDB {
     ).length;
   }
 
+  async recallMessage(messageId: string, senderId: string): Promise<MessageDoc | null> {
+    const msg = this.messages.get(messageId);
+    if (!msg) return null;
+    const msgSender = typeof msg.sender === 'object' ? (msg.sender as any)._id : msg.sender;
+    if (msgSender !== senderId) return null;
+    msg.isRecalled = true;
+    msg.content = '';
+    return msg;
+  }
+
   // Conversations
   async createConversation(
     data: Omit<ConversationDoc, '_id' | 'createdAt' | 'updatedAt'>

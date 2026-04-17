@@ -15,6 +15,8 @@ const MessageSchema = new Schema<IMessageDoc>(
     type: { type: String, enum: ['text', 'image', 'file'], default: 'text' },
     fileUrl: { type: String },
     isRead: { type: Boolean, default: false },
+    replyTo: { type: String },
+    isRecalled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

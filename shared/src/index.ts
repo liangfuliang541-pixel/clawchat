@@ -24,6 +24,8 @@ export interface Message {
   type: 'text' | 'image' | 'file';
   fileUrl?: string;
   isRead: boolean;
+  replyTo?: string;
+  isRecalled?: boolean;
   createdAt: string;
 }
 
@@ -67,6 +69,7 @@ export interface ServerToClientEvents {
   user_typing: (data: { conversationId: string; userId: string }) => void;
   user_status_changed: (data: { userId: string; status: User['status'] }) => void;
   message_read: (data: { messageId: string; conversationId: string; userId: string }) => void;
+  message_recalled: (data: { messageId: string; conversationId: string }) => void;
   unread_messages: (data: { conversationId: string; messages: Message[] }) => void;
   error: (data: { message: string }) => void;
 }
@@ -76,7 +79,9 @@ export interface ClientToServerEvents {
     conversationId: string;
     content: string;
     type?: Message['type'];
+    replyTo?: string;
   }) => void;
+  recall_message: (payload: { messageId: string; conversationId: string }) => void;
   typing: (payload: { conversationId: string }) => void;
   read_message: (payload: { messageId: string; conversationId: string }) => void;
   join_conversation: (conversationId: string) => void;

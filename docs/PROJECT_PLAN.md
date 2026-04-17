@@ -100,10 +100,10 @@ clawchat/
 ### Phase 2: 核心功能 (第2-3周)
 
 - [x] 用户认证系统（JWT + X-API-Key 双认证）
-- [x] 消息功能（发送、历史、已读）
+- [x] 消息功能（发送、历史、已读、引用回复、撤回）
 - [x] 实时通信（Socket.io 事件）
 - [x] Repository/Service/Controller 分层架构
-- [x] 后端测试（Vitest，19 项通过）
+- [x] 后端测试（Vitest，25 项通过）
 
 ### Phase 3: 扩展功能 (第4周)
 

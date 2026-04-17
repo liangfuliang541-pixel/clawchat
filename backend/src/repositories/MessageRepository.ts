@@ -113,6 +113,19 @@ export class MessageRepository extends BaseRepository<IMessageDoc> {
       .lean<IMessageDoc[]>()
       .exec();
   }
+
+  async recall(messageId: string, senderId: string): Promise<IMessageDoc | null> {
+    if (USE_MOCK) {
+      return mockDB.recallMessage(messageId, senderId) as unknown as IMessageDoc | null;
+    }
+    const msg = await Message.findById(messageId).lean().exec();
+    if (!msg) return null;
+    const msgSender = (msg.sender as any)?.toString?.() || msg.sender;
+    if (msgSender !== senderId) return null;
+    return Message.findByIdAndUpdate(messageId, { isRecalled: true, content: '' }, { new: true })
+      .lean()
+      .exec() as Promise<IMessageDoc | null>;
+  }
 }
 
 export const messageRepository = new MessageRepository();

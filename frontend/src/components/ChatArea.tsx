@@ -42,12 +42,14 @@ export const ChatArea = () => {
     appendMessage,
     setMessages,
     markMessageAsRead,
+    recallMessage,
     setTyping,
   } = useChatStore();
   const socketRef = useRef<Socket | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [input, setInput] = useState('');
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
 
@@ -96,6 +98,10 @@ export const ChatArea = () => {
       markMessageAsRead(messageId);
     });
 
+    socket.on('message_recalled', ({ messageId }: { messageId: string }) => {
+      recallMessage(messageId);
+    });
+
     socket.on('user_typing', ({ conversationId }: { conversationId: string }) => {
       setTyping(conversationId, true);
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -107,7 +113,15 @@ export const ChatArea = () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user, currentConversationId, appendMessage, markMessageAsRead, setTyping, setConnected]);
+  }, [
+    user,
+    currentConversationId,
+    appendMessage,
+    markMessageAsRead,
+    recallMessage,
+    setTyping,
+    setConnected,
+  ]);
 
   // Join/leave room
   useEffect(() => {
@@ -127,7 +141,6 @@ export const ChatArea = () => {
 
     setSendStatus('sending');
 
-    // Optimistic append
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg: Message = {
       _id: tempId,
@@ -137,16 +150,19 @@ export const ChatArea = () => {
       content,
       type: 'text',
       isRead: false,
+      replyTo: replyingTo?._id,
       createdAt: new Date().toISOString(),
     };
     appendMessage(currentConversationId, optimisticMsg);
     setInput('');
+    setReplyingTo(null);
     setTimeout(scrollToBottom, 50);
 
     socketRef.current.emit('send_message', {
       conversationId: currentConversationId,
       content,
       type: 'text',
+      replyTo: replyingTo?._id,
     });
 
     setTimeout(() => setSendStatus('sent'), 300);
@@ -156,6 +172,21 @@ export const ChatArea = () => {
     if (!socketRef.current || !currentConversationId) return;
     socketRef.current.emit('typing', { conversationId: currentConversationId });
   }, [currentConversationId]);
+
+  const handleRecall = (messageId: string) => {
+    if (!socketRef.current || !currentConversationId) return;
+    socketRef.current.emit('recall_message', {
+      messageId,
+      conversationId: currentConversationId,
+    });
+  };
+
+  const canRecall = (msg: Message) => {
+    const senderId = getSenderId(msg);
+    if (senderId !== user?._id) return false;
+    const elapsed = Date.now() - new Date(msg.createdAt).getTime();
+    return elapsed < 2 * 60 * 1000; // 2 minutes
+  };
 
   const currentMessages = currentConversationId ? messages[currentConversationId] || [] : [];
   const isTyping = currentConversationId ? typing[currentConversationId] : false;
@@ -205,12 +236,16 @@ export const ChatArea = () => {
             const isMe = senderId === user?._id;
             const isTemp = msg._id.startsWith('temp-');
             const isAgent = sender.kind === 'agent';
+            const isRecalled = msg.isRecalled;
             const showAvatar = idx === 0 || getSenderId(currentMessages[idx - 1]) !== senderId;
+            const replyTarget = msg.replyTo
+              ? currentMessages.find((m) => m._id === msg.replyTo)
+              : undefined;
 
             return (
               <div
                 key={msg._id}
-                className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                className={`group flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}
               >
                 <div className={`flex max-w-[70%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                   {/* Avatar */}
@@ -228,7 +263,9 @@ export const ChatArea = () => {
                   {!showAvatar && !isMe && <div className="w-8 shrink-0" />}
 
                   {/* Bubble */}
-                  <div className={`${isMe ? 'msg-out' : 'msg-in'} ${isTemp ? 'opacity-70' : ''}`}>
+                  <div
+                    className={`${isMe ? 'msg-out' : 'msg-in'} ${isTemp ? 'opacity-70' : ''} relative`}
+                  >
                     {/* Agent label */}
                     {isAgent && showAvatar && (
                       <div className="mb-1 flex items-center gap-1">
@@ -242,7 +279,25 @@ export const ChatArea = () => {
                         )}
                       </div>
                     )}
-                    <p className="text-[15px] leading-relaxed">{msg.content}</p>
+
+                    {/* Reply reference */}
+                    {replyTarget && (
+                      <div
+                        className={`mb-1.5 rounded-md border-l-2 ${isMe ? 'border-white/40 bg-white/10' : 'border-hermes-gold/60 bg-hermes-parchment/50'} px-2 py-1`}
+                      >
+                        <p className="truncate text-[11px] opacity-80">
+                          {replyTarget.isRecalled ? '消息已撤回' : replyTarget.content}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Content */}
+                    {isRecalled ? (
+                      <p className="text-[15px] leading-relaxed opacity-60 italic">消息已撤回</p>
+                    ) : (
+                      <p className="text-[15px] leading-relaxed">{msg.content}</p>
+                    )}
+
                     <div
                       className={`mt-1.5 flex items-center gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
@@ -254,7 +309,7 @@ export const ChatArea = () => {
                           minute: '2-digit',
                         })}
                       </span>
-                      {isMe && !isTemp && (
+                      {isMe && !isTemp && !isRecalled && (
                         <span
                           className={`text-[10px] ${msg.isRead ? 'text-white/90' : 'text-white/50'}`}
                         >
@@ -265,6 +320,28 @@ export const ChatArea = () => {
                         <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                       )}
                     </div>
+
+                    {/* Hover actions */}
+                    {!isRecalled && !isTemp && (
+                      <div
+                        className={`absolute -top-6 ${isMe ? 'left-0' : 'right-0'} hidden gap-1 group-hover:flex`}
+                      >
+                        <button
+                          onClick={() => setReplyingTo(msg)}
+                          className="rounded bg-white px-1.5 py-0.5 text-[10px] text-hermes-brown shadow-sm border border-hermes-cream-dark hover:text-hermes-orange"
+                        >
+                          回复
+                        </button>
+                        {canRecall(msg) && (
+                          <button
+                            onClick={() => handleRecall(msg._id)}
+                            className="rounded bg-white px-1.5 py-0.5 text-[10px] text-hermes-brown shadow-sm border border-hermes-cream-dark hover:text-red-500"
+                          >
+                            撤回
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -298,6 +375,20 @@ export const ChatArea = () => {
 
       {/* Input */}
       <form onSubmit={handleSend} className="border-t border-hermes-cream-dark bg-white px-6 py-4">
+        {replyingTo && (
+          <div className="mb-2 flex items-center justify-between rounded-md bg-hermes-parchment/60 px-3 py-1.5">
+            <span className="truncate text-xs text-hermes-brown">
+              回复: {replyingTo.isRecalled ? '消息已撤回' : replyingTo.content}
+            </span>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="ml-2 text-xs text-hermes-ink-muted hover:text-hermes-brown"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             type="button"

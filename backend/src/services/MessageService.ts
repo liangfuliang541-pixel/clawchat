@@ -42,6 +42,7 @@ export class MessageService {
     content: string;
     type?: Message['type'];
     fileUrl?: string;
+    replyTo?: string;
   }): Promise<Message> {
     const conversation = await conversationRepository.findById(data.conversationId);
     if (!conversation) {
@@ -65,6 +66,7 @@ export class MessageService {
       content: data.content,
       type: data.type || 'text',
       fileUrl: data.fileUrl,
+      replyTo: data.replyTo,
       isRead: false,
     });
 
@@ -92,6 +94,12 @@ export class MessageService {
 
   async getUnreadCount(conversationId: string, userId: string): Promise<number> {
     return messageRepository.countUnread(conversationId, userId);
+  }
+
+  async recallMessage(messageId: string, senderId: string): Promise<Message | null> {
+    const recalled = await messageRepository.recall(messageId, senderId);
+    if (!recalled) return null;
+    return toMessageResponse(recalled);
   }
 }
 

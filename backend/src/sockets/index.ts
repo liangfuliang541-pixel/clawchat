@@ -47,6 +47,7 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
           conversationId: payload.conversationId,
           content: payload.content,
           type: payload.type || 'text',
+          replyTo: payload.replyTo,
         });
 
         io.to(payload.conversationId).emit('receive_message', message);
@@ -74,6 +75,20 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
         });
       } catch (err) {
         logger.error({ err }, 'Failed to mark message as read');
+      }
+    });
+
+    socket.on('recall_message', async (payload) => {
+      try {
+        const recalled = await messageService.recallMessage(payload.messageId, userId);
+        if (recalled) {
+          io.to(payload.conversationId).emit('message_recalled', {
+            messageId: payload.messageId,
+            conversationId: payload.conversationId,
+          });
+        }
+      } catch (err) {
+        logger.error({ err }, 'Failed to recall message');
       }
     });
 

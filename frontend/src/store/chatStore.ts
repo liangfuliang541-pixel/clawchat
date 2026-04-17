@@ -13,6 +13,7 @@ interface ChatState {
   appendMessage: (conversationId: string, message: Message) => void;
   prependMessages: (conversationId: string, messages: Message[]) => void;
   markMessageAsRead: (messageId: string) => void;
+  recallMessage: (messageId: string) => void;
   setTyping: (conversationId: string, isTyping: boolean) => void;
 }
 
@@ -47,6 +48,16 @@ export const useChatStore = create<ChatState>()((set) => ({
       const next: Record<string, Message[]> = {};
       for (const [cid, list] of Object.entries(state.messages)) {
         next[cid] = list.map((m) => (m._id === messageId ? { ...m, isRead: true } : m));
+      }
+      return { messages: next };
+    }),
+  recallMessage: (messageId) =>
+    set((state) => {
+      const next: Record<string, Message[]> = {};
+      for (const [cid, list] of Object.entries(state.messages)) {
+        next[cid] = list.map((m) =>
+          m._id === messageId ? { ...m, isRecalled: true, content: '' } : m
+        );
       }
       return { messages: next };
     }),
