@@ -5,6 +5,8 @@ import { useChatStore } from '../store/chatStore';
 import { messageApi } from '../lib/api';
 import type { Message } from '@clawchat/shared';
 
+type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
+
 export const ChatArea = () => {
   const { user } = useAuthStore();
   const {
@@ -23,6 +25,7 @@ export const ChatArea = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [input, setInput] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [sendStatus, setSendStatus] = useState<SendStatus>('idle');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,14 +85,12 @@ export const ChatArea = () => {
     };
   }, [user, currentConversationId, appendMessage, markMessageAsRead, setTyping, setConnected]);
 
-  // Join/leave room when conversation changes
+  // Join/leave room
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket || !connected) return;
 
-    // Leave previous rooms (simple approach: emit leave for all known conversations)
     Object.keys(messages).forEach((cid) => socket.emit('leave_conversation', cid));
-
     if (currentConversationId) {
       socket.emit('join_conversation', currentConversationId);
     }
@@ -100,12 +101,32 @@ export const ChatArea = () => {
     const content = input.trim();
     if (!content || !currentConversationId || !socketRef.current) return;
 
+    setSendStatus('sending');
+
+    // Optimistic append
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      _id: tempId,
+      sender: user?._id || '',
+      receiver: '',
+      conversationId: currentConversationId,
+      content,
+      type: 'text',
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+    appendMessage(currentConversationId, optimisticMsg);
+    setInput('');
+    setTimeout(scrollToBottom, 50);
+
     socketRef.current.emit('send_message', {
       conversationId: currentConversationId,
       content,
       type: 'text',
     });
-    setInput('');
+
+    // Simulate ack timeout for demo; in prod the server would ack
+    setTimeout(() => setSendStatus('sent'), 300);
   };
 
   const handleTyping = useCallback(() => {
@@ -118,60 +139,111 @@ export const ChatArea = () => {
 
   if (!currentConversationId) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <p className="text-lg font-medium">选择一个对话开始聊天</p>
+      <div className="flex flex-1 flex-col items-center justify-center bg-hermes-cream">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-hermes-parchment">
+            <span className="text-2xl">✉️</span>
+          </div>
+          <p className="text-base font-semibold text-hermes-brown">选择一个对话</p>
+          <p className="mt-1 text-sm text-hermes-ink-muted">开始一场精心雕琢的交流</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-gray-50">
+    <div className="flex flex-1 flex-col bg-hermes-cream">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900">聊天</h3>
+      <div className="flex items-center justify-between border-b border-hermes-cream-dark bg-white px-6 py-3.5">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-bold tracking-wide text-hermes-brown uppercase">聊天</h3>
           <span
-            className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-gray-400'}`}
+            className={`status-dot ${connected ? 'online' : 'bg-hermes-ink-muted'}`}
             title={connected ? '已连接' : '未连接'}
           />
+          {!connected && <span className="text-[11px] text-hermes-ink-muted">重连中…</span>}
         </div>
+        {sendStatus === 'sending' && (
+          <span className="text-[11px] text-hermes-gold animate-pulse-soft">发送中…</span>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-5">
         {loadingHistory && (
-          <div className="py-2 text-center text-xs text-gray-400">加载历史消息...</div>
+          <div className="py-2 text-center text-[11px] tracking-wider text-hermes-ink-muted uppercase">
+            加载历史消息…
+          </div>
         )}
-        <div className="space-y-3">
-          {currentMessages.map((msg) => {
+        <div className="space-y-4">
+          {currentMessages.map((msg, idx) => {
             const isMe = msg.sender === user?._id;
+            const isTemp = msg._id.startsWith('temp-');
+            const showAvatar = idx === 0 || currentMessages[idx - 1].sender !== msg.sender;
+
             return (
-              <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-md rounded-2xl px-4 py-2 shadow-sm ${
-                    isMe ? 'bg-indigo-600 text-white' : 'bg-white text-gray-900'
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed">{msg.content}</p>
-                  <p
-                    className={`mt-1 text-right text-[10px] ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}
-                  >
-                    {new Date(msg.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                    {isMe && msg.isRead && <span className="ml-1">已读</span>}
-                  </p>
+              <div
+                key={msg._id}
+                className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}
+              >
+                <div className={`flex max-w-[70%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* Avatar */}
+                  {showAvatar && !isMe && (
+                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hermes-parchment text-xs font-bold text-hermes-brown">
+                      {(msg.sender as string).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {!showAvatar && !isMe && <div className="w-8 shrink-0" />}
+
+                  {/* Bubble */}
+                  <div className={`${isMe ? 'msg-out' : 'msg-in'} ${isTemp ? 'opacity-70' : ''}`}>
+                    <p className="text-[15px] leading-relaxed">{msg.content}</p>
+                    <div
+                      className={`mt-1.5 flex items-center gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <span
+                        className={`text-[10px] ${isMe ? 'text-white/70' : 'text-hermes-ink-muted'}`}
+                      >
+                        {new Date(msg.createdAt).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {isMe && !isTemp && (
+                        <span
+                          className={`text-[10px] ${msg.isRead ? 'text-white/90' : 'text-white/50'}`}
+                        >
+                          {msg.isRead ? '已读' : '送达'}
+                        </span>
+                      )}
+                      {isTemp && (
+                        <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })}
+
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl bg-white px-4 py-2 text-sm text-gray-500 shadow-sm">
-                对方正在输入…
+            <div className="flex justify-start animate-fade-in">
+              <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 shadow-sm border border-hermes-cream-dark">
+                <div className="flex gap-1">
+                  <span
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-hermes-ink-muted"
+                    style={{ animationDelay: '0ms' }}
+                  />
+                  <span
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-hermes-ink-muted"
+                    style={{ animationDelay: '150ms' }}
+                  />
+                  <span
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-hermes-ink-muted"
+                    style={{ animationDelay: '300ms' }}
+                  />
+                </div>
+                <span className="text-xs text-hermes-ink-muted">正在输入…</span>
               </div>
             </div>
           )}
@@ -180,8 +252,8 @@ export const ChatArea = () => {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="border-t border-gray-200 bg-white px-6 py-4">
-        <div className="flex gap-2">
+      <form onSubmit={handleSend} className="border-t border-hermes-cream-dark bg-white px-6 py-4">
+        <div className="flex gap-3">
           <input
             type="text"
             value={input}
@@ -189,16 +261,28 @@ export const ChatArea = () => {
               setInput(e.target.value);
               handleTyping();
             }}
-            placeholder="输入消息..."
+            placeholder="书写一条消息…"
             disabled={!connected}
-            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="input-hermes flex-1"
           />
           <button
             type="submit"
             disabled={!input.trim() || !connected}
-            className="rounded-lg bg-indigo-600 px-6 py-2 font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-gray-300"
+            className="btn-hermes shrink-0 disabled:opacity-40 disabled:hover:shadow-none"
           >
-            发送
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              />
+            </svg>
           </button>
         </div>
       </form>

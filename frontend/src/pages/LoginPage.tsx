@@ -44,83 +44,115 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-hermes-cream px-4">
+      <div className="animate-slide-up w-full max-w-md">
+        {/* Brand mark */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-indigo-600">🦞</h1>
-          <h2 className="mt-2 text-2xl font-bold text-gray-900">ClawChat</h2>
-          <p className="mt-1 text-gray-600">{isLogin ? '登录你的账号' : '创建新账号'}</p>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-hermes-orange shadow-lg shadow-hermes-orange/20">
+            <span className="text-3xl">🦞</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-hermes-brown">ClawChat</h1>
+          <p className="mt-2 text-sm font-medium tracking-wide text-hermes-ink-muted uppercase">
+            A Hermès-grade Messenger
+          </p>
         </div>
 
-        {error && <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+        {/* Card */}
+        <div className="card-leather p-8">
+          <h2 className="mb-6 text-center text-lg font-semibold text-hermes-brown">
+            {isLogin ? '欢迎回来' : '创建账户'}
+          </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">用户名</label>
-              <input
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="输入用户名"
-                required={!isLogin}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
+          {error && (
+            <div className="mb-4 animate-fade-in rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">邮箱</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="输入邮箱"
-              required
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div className="animate-fade-in">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-hermes-ink-muted">
+                  用户名
+                </label>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="输入用户名"
+                  required={!isLogin}
+                  className="input-hermes w-full"
+                />
+              </div>
+            )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">密码</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="输入密码"
-              required
-              minLength={6}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-hermes-ink-muted">
+                邮箱
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="输入邮箱"
+                required
+                className="input-hermes w-full"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 disabled:bg-gray-400"
-          >
-            {loading ? '加载中...' : isLogin ? '登录' : '注册'}
-          </button>
-        </form>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-hermes-ink-muted">
+                密码
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="输入密码"
+                required
+                minLength={6}
+                className="input-hermes w-full"
+              />
+            </div>
 
-        <div className="mt-6 border-t pt-6 text-center">
-          <p className="text-sm text-gray-600">
-            {isLogin ? '没有账号？' : '已有账号？'}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-              }}
-              className="ml-2 font-semibold text-indigo-600 hover:underline"
-            >
-              {isLogin ? '注册' : '登录'}
+            <button type="submit" disabled={loading} className="btn-hermes mt-2 w-full">
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  加载中…
+                </span>
+              ) : isLogin ? (
+                '登录'
+              ) : (
+                '注册'
+              )}
             </button>
-          </p>
+          </form>
+
+          <div className="mt-6 border-t border-hermes-cream-dark pt-6 text-center">
+            <p className="text-sm text-hermes-ink-muted">
+              {isLogin ? '还没有账户？' : '已有账户？'}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                }}
+                className="ml-2 font-semibold text-hermes-orange hover:text-hermes-orange-dark hover:underline transition-colors"
+              >
+                {isLogin ? '注册' : '登录'}
+              </button>
+            </p>
+          </div>
         </div>
+
+        {/* Footer craft note */}
+        <p className="mt-6 text-center text-xs tracking-widest text-hermes-ink-muted/60 uppercase">
+          Crafted with care · Est. 2026
+        </p>
       </div>
     </div>
   );
