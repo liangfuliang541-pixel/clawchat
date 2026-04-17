@@ -1,23 +1,39 @@
 import type { Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import type { ServerToClientEvents, ClientToServerEvents } from '@clawchat/shared';
+import { userRepository } from '../repositories/index.js';
 import { logger } from '../config/logger.js';
 
 export interface AuthenticatedSocket extends Socket<ClientToServerEvents, ServerToClientEvents> {
   userId?: string;
 }
 
-export const socketAuthMiddleware = (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
+const getJwtSecret = () => process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
+
+export const socketAuthMiddleware = async (
+  socket: AuthenticatedSocket,
+  next: (err?: Error) => void
+) => {
   try {
+    // Try JWT token first (human users)
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-    if (!token || typeof token !== 'string') {
-      return next(new Error('Authentication required'));
+    if (token && typeof token === 'string') {
+      const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
+      socket.userId = decoded.userId;
+      return next();
     }
 
-    const secret = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
-    const decoded = jwt.verify(token, secret) as { userId: string };
-    socket.userId = decoded.userId;
-    next();
+    // Try API key (agents)
+    const apiKey = socket.handshake.auth?.apiKey || socket.handshake.query?.apiKey;
+    if (apiKey && typeof apiKey === 'string') {
+      const agent = await userRepository.findByApiKey(apiKey);
+      if (agent && agent.kind === 'agent') {
+        socket.userId = (agent._id.toString?.() || agent._id) as string;
+        return next();
+      }
+    }
+
+    next(new Error('Authentication required'));
   } catch (err) {
     logger.warn({ socketId: socket.id, err }, 'Socket authentication failed');
     next(new Error('Invalid token'));

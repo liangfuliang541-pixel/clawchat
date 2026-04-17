@@ -3,9 +3,33 @@ import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore';
 import { useChatStore } from '../store/chatStore';
 import { messageApi } from '../lib/api';
-import type { Message } from '@clawchat/shared';
+import type { Message, User } from '@clawchat/shared';
 
 type SendStatus = 'idle' | 'sending' | 'sent' | 'failed';
+
+function getSenderInfo(msg: Message): {
+  id: string;
+  kind: 'human' | 'agent';
+  username: string;
+  agentType?: string;
+} {
+  if (typeof msg.sender === 'object' && msg.sender !== null) {
+    const u = msg.sender as User;
+    return {
+      id: u._id,
+      kind: u.kind || 'human',
+      username: u.username,
+      agentType: u.agentType,
+    };
+  }
+  return { id: msg.sender as string, kind: 'human', username: '' };
+}
+
+function getSenderId(msg: Message): string {
+  return typeof msg.sender === 'object' && msg.sender !== null
+    ? (msg.sender as User)._id
+    : (msg.sender as string);
+}
 
 export const ChatArea = () => {
   const { user } = useAuthStore();
@@ -125,7 +149,6 @@ export const ChatArea = () => {
       type: 'text',
     });
 
-    // Simulate ack timeout for demo; in prod the server would ack
     setTimeout(() => setSendStatus('sent'), 300);
   };
 
@@ -164,22 +187,25 @@ export const ChatArea = () => {
           {!connected && <span className="text-[11px] text-hermes-ink-muted">重连中…</span>}
         </div>
         {sendStatus === 'sending' && (
-          <span className="text-[11px] text-hermes-gold animate-pulse-soft">发送中…</span>
+          <span className="animate-pulse-soft text-[11px] text-hermes-gold">发送中…</span>
         )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {loadingHistory && (
-          <div className="py-2 text-center text-[11px] tracking-wider text-hermes-ink-muted uppercase">
+          <div className="py-2 text-center text-[11px] uppercase tracking-wider text-hermes-ink-muted">
             加载历史消息…
           </div>
         )}
         <div className="space-y-4">
           {currentMessages.map((msg, idx) => {
-            const isMe = msg.sender === user?._id;
+            const sender = getSenderInfo(msg);
+            const senderId = getSenderId(msg);
+            const isMe = senderId === user?._id;
             const isTemp = msg._id.startsWith('temp-');
-            const showAvatar = idx === 0 || currentMessages[idx - 1].sender !== msg.sender;
+            const isAgent = sender.kind === 'agent';
+            const showAvatar = idx === 0 || getSenderId(currentMessages[idx - 1]) !== senderId;
 
             return (
               <div
@@ -189,14 +215,33 @@ export const ChatArea = () => {
                 <div className={`flex max-w-[70%] gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                   {/* Avatar */}
                   {showAvatar && !isMe && (
-                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hermes-parchment text-xs font-bold text-hermes-brown">
-                      {(msg.sender as string).charAt(0).toUpperCase()}
+                    <div
+                      className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        isAgent
+                          ? 'bg-hermes-orange/10 text-hermes-orange'
+                          : 'bg-hermes-parchment text-hermes-brown'
+                      }`}
+                    >
+                      {isAgent ? '🤖' : sender.username.charAt(0).toUpperCase() || '?'}
                     </div>
                   )}
                   {!showAvatar && !isMe && <div className="w-8 shrink-0" />}
 
                   {/* Bubble */}
                   <div className={`${isMe ? 'msg-out' : 'msg-in'} ${isTemp ? 'opacity-70' : ''}`}>
+                    {/* Agent label */}
+                    {isAgent && showAvatar && (
+                      <div className="mb-1 flex items-center gap-1">
+                        <span className="text-[10px] font-semibold text-hermes-orange">
+                          {sender.username}
+                        </span>
+                        {sender.agentType && (
+                          <span className="rounded bg-hermes-orange/10 px-1 text-[9px] text-hermes-orange">
+                            {sender.agentType}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-[15px] leading-relaxed">{msg.content}</p>
                     <div
                       className={`mt-1.5 flex items-center gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}
@@ -228,7 +273,7 @@ export const ChatArea = () => {
 
           {isTyping && (
             <div className="flex justify-start animate-fade-in">
-              <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-white px-4 py-2.5 shadow-sm border border-hermes-cream-dark">
+              <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-hermes-cream-dark bg-white px-4 py-2.5 shadow-sm">
                 <div className="flex gap-1">
                   <span
                     className="h-1.5 w-1.5 animate-bounce rounded-full bg-hermes-ink-muted"

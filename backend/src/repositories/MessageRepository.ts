@@ -36,7 +36,12 @@ export class MessageRepository extends BaseRepository<IMessageDoc> {
     beforeCursor?: string
   ): Promise<CursorPaginationResult<IMessageDoc>> {
     if (USE_MOCK) {
-      const result = await mockDB.findMessagesByConversation(conversationId, limit, beforeCursor);
+      const result = await mockDB.findMessagesByConversation(
+        conversationId,
+        limit,
+        beforeCursor,
+        true
+      );
       return result as unknown as CursorPaginationResult<IMessageDoc>;
     }
 
@@ -48,7 +53,7 @@ export class MessageRepository extends BaseRepository<IMessageDoc> {
     const items = await Message.find(filter)
       .sort({ createdAt: -1 })
       .limit(limit + 1)
-      .populate('sender', 'username avatar')
+      .populate('sender', 'username avatar kind agentType')
       .lean<IMessageDoc[]>()
       .exec();
 
@@ -93,13 +98,18 @@ export class MessageRepository extends BaseRepository<IMessageDoc> {
 
   async findRecentByConversation(conversationId: string, limit = 50): Promise<IMessageDoc[]> {
     if (USE_MOCK) {
-      const result = await mockDB.findMessagesByConversation(conversationId, limit);
+      const result = await mockDB.findMessagesByConversation(
+        conversationId,
+        limit,
+        undefined,
+        true
+      );
       return result.items as unknown as IMessageDoc[];
     }
     return Message.find({ conversationId })
       .sort({ createdAt: -1 })
       .limit(limit)
-      .populate('sender', 'username avatar')
+      .populate('sender', 'username avatar kind agentType')
       .lean<IMessageDoc[]>()
       .exec();
   }

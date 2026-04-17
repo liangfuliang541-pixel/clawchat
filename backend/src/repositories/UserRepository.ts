@@ -102,6 +102,28 @@ export class UserRepository extends BaseRepository<IUserDoc> {
       .lean<IUserDoc[]>()
       .exec();
   }
+
+  async findByApiKey(apiKey: string): Promise<IUserDoc | null> {
+    if (USE_MOCK) {
+      const agent = Array.from((mockDB as any).users.values()).find(
+        (u: any) => u.kind === 'agent' && u.apiKey === apiKey
+      );
+      return (agent || null) as unknown as IUserDoc | null;
+    }
+    const user = await User.findOne({ kind: 'agent' }).select('+apiKey').exec();
+    if (!user || !user.apiKey) return null;
+    const valid = await user.compareApiKey(apiKey);
+    return valid ? user : null;
+  }
+
+  async findAgents(): Promise<IUserDoc[]> {
+    if (USE_MOCK) {
+      return Array.from((mockDB as any).users.values())
+        .filter((u: any) => u.kind === 'agent')
+        .slice(0, 100) as unknown as IUserDoc[];
+    }
+    return User.find({ kind: 'agent' }).select('-password -apiKey').lean<IUserDoc[]>().exec();
+  }
 }
 
 export const userRepository = new UserRepository();

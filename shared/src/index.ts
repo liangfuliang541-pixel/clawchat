@@ -9,6 +9,8 @@ export interface User {
   avatar?: string;
   bio?: string;
   status: 'online' | 'offline' | 'away';
+  kind: 'human' | 'agent';
+  agentType?: string;
   createdAt: string;
   updatedAt: string;
 }

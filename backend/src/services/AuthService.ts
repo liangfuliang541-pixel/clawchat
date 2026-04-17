@@ -24,10 +24,12 @@ const signToken = (userId: string) =>
 const toUserResponse = (user: any): User => ({
   _id: user._id.toString?.() || user._id,
   username: user.username,
-  email: user.email,
+  email: user.email || '',
   avatar: user.avatar || '',
   bio: user.bio || '',
   status: user.status,
+  kind: user.kind || 'human',
+  agentType: user.agentType,
   createdAt: user.createdAt?.toISOString?.() || user.createdAt,
   updatedAt: user.updatedAt?.toISOString?.() || user.updatedAt,
 });

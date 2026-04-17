@@ -12,6 +12,7 @@ import messageRoutes from './routes/messageRoutes.js';
 import conversationRoutes from './routes/conversationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import friendshipRoutes from './routes/friendshipRoutes.js';
+import agentRoutes from './routes/agentRoutes.js';
 import { registerSocketHandlers, socketAuthMiddleware } from './sockets/index.js';
 
 dotenv.config();
@@ -49,6 +50,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friendships', friendshipRoutes);
+app.use('/api/agents', agentRoutes);
 
 // Error handling
 app.use(errorHandler);

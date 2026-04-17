@@ -10,7 +10,7 @@ import type {
 // 🧪 In-Memory Mock Database for Quick API Validation
 // ============================================
 
-type UserDoc = IUser & { password: string };
+type UserDoc = IUser & { password?: string; apiKey?: string };
 type MessageDoc = IMessage;
 type ConversationDoc = IConversation;
 
@@ -32,8 +32,17 @@ class MockDB {
   usernameIndex = new Map<string, string>();
 
   // Users
-  async createUser(data: { username: string; email: string; password: string }): Promise<UserDoc> {
-    if (this.emailIndex.has(data.email) || this.usernameIndex.has(data.username)) {
+  async createUser(data: {
+    username: string;
+    email?: string;
+    password?: string;
+    apiKey?: string;
+    kind?: 'human' | 'agent';
+    agentType?: string;
+    avatar?: string;
+    bio?: string;
+  }): Promise<UserDoc> {
+    if (this.usernameIndex.has(data.username)) {
       throw new Error('User already exists');
     }
     const id = randomUUID();
@@ -41,17 +50,22 @@ class MockDB {
     const user: UserDoc = {
       _id: id,
       username: data.username,
-      email: data.email,
-      password: await bcrypt.hash(data.password, 12),
-      avatar: '',
-      bio: '',
+      email: data.email || '',
+      password: data.password ? await bcrypt.hash(data.password, 12) : undefined,
+      apiKey: data.apiKey,
+      avatar: data.avatar || '',
+      bio: data.bio || '',
       status: 'offline',
+      kind: data.kind || 'human',
+      agentType: data.agentType,
       createdAt: now,
       updatedAt: now,
     };
     this.users.set(id, user);
-    this.emailIndex.set(user.email, id);
     this.usernameIndex.set(user.username, id);
+    if (user.email) {
+      this.emailIndex.set(user.email, id);
+    }
     return user;
   }
 
@@ -66,7 +80,7 @@ class MockDB {
 
   async comparePassword(userId: string, candidate: string): Promise<boolean> {
     const user = this.users.get(userId);
-    if (!user) return false;
+    if (!user || !user.password) return false;
     return bcrypt.compare(candidate, user.password);
   }
 
@@ -94,7 +108,8 @@ class MockDB {
   async findMessagesByConversation(
     conversationId: string,
     limit = 50,
-    beforeCursor?: string
+    beforeCursor?: string,
+    populateSender = false
   ): Promise<{ items: MessageDoc[]; nextCursor?: string; hasMore: boolean }> {
     let list = Array.from(this.messages.values())
       .filter((m) => m.conversationId === conversationId)
@@ -106,7 +121,21 @@ class MockDB {
     }
 
     const hasMore = list.length > limit;
-    const items = hasMore ? list.slice(0, limit) : list;
+    let items = hasMore ? list.slice(0, limit) : list;
+
+    if (populateSender) {
+      items = items.map((msg) => {
+        const senderUser = this.users.get(msg.sender as string);
+        if (senderUser) {
+          return {
+            ...msg,
+            sender: senderUser,
+          };
+        }
+        return msg;
+      });
+    }
+
     const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].createdAt : undefined;
     return { items, nextCursor, hasMore };
   }
