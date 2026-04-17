@@ -50,3 +50,30 @@ export const messageApi = {
       `/messages/${conversationId}?${new URLSearchParams(params as Record<string, string>).toString()}`
     ),
 };
+
+export interface HermesAgentConfig {
+  _id?: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model?: string;
+  enabled: boolean;
+  autoReply?: boolean;
+  systemPrompt?: string;
+}
+
+export const hermesApi = {
+  listAgents: () =>
+    fetchJson<Pick<HermesAgentConfig, '_id' | 'name' | 'enabled' | 'autoReply'>[]>('/hermes'),
+  registerAgent: (data: Omit<HermesAgentConfig, '_id'>) =>
+    fetchJson<{ id: string }>('/hermes/register', { method: 'POST', body: JSON.stringify(data) }),
+  triggerAgent: (
+    agentId: string,
+    conversationId: string,
+    history: { role: string; content: string }[]
+  ) =>
+    fetchJson<{ content: string | null }>('/hermes/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ agentId, conversationId, history }),
+    }),
+};

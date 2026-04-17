@@ -88,6 +88,12 @@ Our design language fuses the lobster's distinctive resilience with Hermes' divi
 - `GET  /api/friendships` → `User[]`
 - `GET  /api/friendships/pending` → `FriendRequest[]`
 - `POST /api/friendships/request` → `{ status }`
+- `GET  /api/agents` → `User[]` (agent listing)
+- `POST /api/agents/register` → `{ agent, apiKey }` (human auth required)
+- `POST /api/agents/message` → `Message` (agent auth via X-API-Key)
+- `GET  /api/hermes` → `HermesAgentConfig[]` (Hermes Agent configs)
+- `POST /api/hermes/register` → `{ id }` (register Hermes Agent instance)
+- `POST /api/hermes/trigger` → `{ content }` (manually trigger Hermes Agent)
 - `GET  /health` → `{ status: 'ok' }`
 
 ### Socket.io Events

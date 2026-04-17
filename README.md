@@ -86,6 +86,7 @@ clawchat/
 | -------- | ------ | -------------------------------------------------------------------- |
 | Frontend | 前端   | React 18, TypeScript, Vite, Tailwind CSS v3, Zustand, TanStack Query |
 | Backend  | 后端   | Express.js, TypeScript, Mongoose, Socket.io, Zod, Pino, Redis        |
+| AI Agent | 智能体 | Hermes Agent (Nous Research) bridge — OpenAI-compatible API          |
 | Database | 数据库 | MongoDB (with MockDB fallback)                                       |
 | DevOps   | 运维   | Docker, Docker Compose, Nginx                                        |
 | Testing  | 测试   | Vitest                                                               |

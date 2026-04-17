@@ -13,6 +13,7 @@ import conversationRoutes from './routes/conversationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import friendshipRoutes from './routes/friendshipRoutes.js';
 import agentRoutes from './routes/agentRoutes.js';
+import hermesRoutes from './routes/hermesRoutes.js';
 import { registerSocketHandlers, socketAuthMiddleware } from './sockets/index.js';
 
 dotenv.config();
@@ -51,6 +52,7 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/friendships', friendshipRoutes);
 app.use('/api/agents', agentRoutes);
+app.use('/api/hermes', hermesRoutes);
 
 // Error handling
 app.use(errorHandler);

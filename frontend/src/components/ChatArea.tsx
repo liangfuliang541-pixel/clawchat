@@ -298,7 +298,17 @@ export const ChatArea = () => {
 
       {/* Input */}
       <form onSubmit={handleSend} className="border-t border-hermes-cream-dark bg-white px-6 py-4">
-        <div className="flex gap-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setInput((prev) => (prev ? prev + ' @agent' : '@agent '));
+            }}
+            title="召唤 Agent"
+            className="shrink-0 rounded-lg border border-hermes-orange/30 px-3 py-2 text-xs font-semibold text-hermes-orange transition-colors hover:bg-hermes-orange/10"
+          >
+            @Agent
+          </button>
           <input
             type="text"
             value={input}
@@ -306,7 +316,7 @@ export const ChatArea = () => {
               setInput(e.target.value);
               handleTyping();
             }}
-            placeholder="书写一条消息…"
+            placeholder="书写一条消息… 使用 @agent 召唤 Hermes"
             disabled={!connected}
             className="input-hermes flex-1"
           />

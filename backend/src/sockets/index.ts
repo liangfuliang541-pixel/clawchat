@@ -2,6 +2,7 @@ import type { Server } from 'socket.io';
 import type { ServerToClientEvents, ClientToServerEvents } from '@clawchat/shared';
 import { logger } from '../config/logger.js';
 import { messageService } from '../services/index.js';
+import { hermesBridgeService, HermesBridgeService } from '../services/HermesBridgeService.js';
 import { userRepository } from '../repositories/index.js';
 import type { AuthenticatedSocket } from './auth.js';
 
@@ -53,6 +54,10 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
           { messageId: message._id, conversationId: payload.conversationId },
           'Message broadcasted'
         );
+
+        // 🐎 Hermes Agent auto-trigger
+        // Check if message @mentions an agent or if any agent has autoReply enabled
+        await maybeTriggerHermesAgent(io, payload.conversationId, userId);
       } catch (err) {
         logger.error({ err, payload }, 'Failed to send message');
         socket.emit('error', { message: 'Failed to send message' });
@@ -92,3 +97,90 @@ export const registerSocketHandlers = (io: Server<ClientToServerEvents, ServerTo
     });
   });
 };
+
+/**
+ * Check if any Hermes Agent should respond to the latest message.
+ * Triggered when a user sends a message containing @agent
+ * or when an agent has autoReply enabled.
+ */
+async function maybeTriggerHermesAgent(
+  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  conversationId: string,
+  senderUserId: string
+) {
+  const agents = hermesBridgeService.getAgents();
+  if (agents.length === 0) return;
+
+  // Get the conversation history
+  const historyResult = await messageService.getHistory(conversationId, 50);
+  const messages = historyResult.items;
+
+  const latestMessage = messages[messages.length - 1];
+  if (!latestMessage) return;
+
+  const latestContent = latestMessage.content.toLowerCase();
+
+  for (const agentConfig of agents) {
+    if (!agentConfig.enabled) continue;
+
+    const shouldTrigger =
+      latestContent.includes(`@${agentConfig.name.toLowerCase()}`) ||
+      latestContent.includes('@agent') ||
+      agentConfig.autoReply;
+
+    if (!shouldTrigger) continue;
+
+    // Find or create the agent's User record in ClawChat
+    let agentUser = await userRepository.findByUsername(agentConfig.name);
+    if (!agentUser) {
+      // Create a shadow user for this Hermes Agent
+      agentUser = await userRepository.create({
+        username: agentConfig.name,
+        kind: 'agent',
+        agentType: 'hermes',
+        email: `${agentConfig.name}@hermes.local`,
+        avatar: '',
+        bio: `Hermes Agent — ${agentConfig.baseUrl}`,
+        status: 'online',
+      });
+    }
+
+    const agentUserId = (agentUser._id.toString?.() || agentUser._id) as string;
+
+    // Build OpenAI-format history
+    const chatHistory = HermesBridgeService.buildHistory(messages, senderUserId, agentUserId);
+
+    logger.info({ agent: agentConfig.name, conversationId }, 'Triggering Hermes Agent response');
+
+    // Broadcast "agent is thinking" typing indicator
+    io.to(conversationId).emit('user_typing', {
+      conversationId,
+      userId: agentUserId,
+    });
+
+    const content = await hermesBridgeService.invoke(
+      agentConfig._id || agentConfig.name,
+      conversationId,
+      chatHistory
+    );
+
+    if (!content) {
+      logger.warn({ agent: agentConfig.name }, 'Hermes Agent returned no content');
+      continue;
+    }
+
+    // Persist the agent's reply
+    const reply = await messageService.sendMessage({
+      senderId: agentUserId,
+      conversationId,
+      content,
+      type: 'text',
+    });
+
+    io.to(conversationId).emit('receive_message', reply);
+    logger.info(
+      { messageId: reply._id, agent: agentConfig.name, conversationId },
+      'Hermes Agent reply broadcasted'
+    );
+  }
+}
