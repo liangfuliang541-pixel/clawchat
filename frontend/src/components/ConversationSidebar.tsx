@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { conversationApi } from '../lib/api';
 import { useConversationStore } from '../store/conversationStore';
 import { useChatStore } from '../store/chatStore';
+import { AgentManager } from './AgentManager';
 
 interface Props {
   onLogout: () => void;
@@ -124,6 +125,8 @@ export const ConversationSidebar = ({ onLogout, username }: Props) => {
           </button>
         ))}
       </div>
+
+      <AgentManager />
 
       {/* Footer */}
       <div className="border-t border-hermes-cream-dark px-5 py-2.5">
